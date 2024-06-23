@@ -1,7 +1,6 @@
 (local fennel (require :lib.fennel))
 (local repl (require :lib.stdio))
 
-(love.window.setMode 100 100 {:fullscreen true})
 
 (local canvas (let [(w h) (love.window.getMode)]
                 (love.graphics.newCanvas w h)))
@@ -18,7 +17,7 @@
       (false msg) (print mode-name "activate error" msg))))
 
 (fn love.load [args]
-  (set-mode :mode-intro)
+  (set-mode :mode-circles)
   (canvas:setFilter "nearest" "nearest")
   (when (~= :web (. args 1)) (repl.start)))
 
