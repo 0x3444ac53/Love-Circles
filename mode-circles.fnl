@@ -5,19 +5,16 @@
 (fn do-forces [dt input-tbl]
   (collect [k v (pairs input-tbl)] ;; Updates Velocity from Acceleration
     (if (= k :v)
-      (values k (py.v2cw v 
-                         #(+ $1 (* dt (/ input-tbl.a.x (math.pow (/ input-tbl.radius 50) 3))))
-                         #(+ $1 (* dt (/ input-tbl.a.y (math.pow (/ input-tbl.radius 50) 3))))))
-    (if (= k :a)
-      (values k {:x 0 :y 0})
-      (values k v)))))
+      (values k (py.v2+ v (py.v2-> input-tbl.a dt)))
+      (if (= k :a)
+        (values k {:x 0 :y 0})
+        (values k v)))))
 
-(fn handle_keys [current-keys tbl]
-  (let []
-    (var ntbl (collect [k v (pairs tbl)] (values k v)))
-    (each [k v (pairs ntbl.keys)]
-      (if (. current-keys k) (v ntbl (. current-keys k))))
-    ntbl))
+(fn handle_keys [current-keys active tbl]
+  (var c (. tbl active))
+  (each [k v (pairs c.keys)]
+        (if (. current-keys k) (v c (. current-keys k))))
+    tbl)
 
 (fn do-position [dt input-tbl]
     (collect [k v (pairs input-tbl)] ; updates position by velocity
@@ -68,22 +65,16 @@
   cirs)
 
 
+
 (var current-keys {})
 
 (var circles [(require :assets.circle)])
-(tset (. circles 1) :keys
 
-{:right #(tset (. $1 :a) :x 400)
-        :left  #(tset (. $1 :a) :x -400)
-        :down  #(tset (. $1 :a) :y 400)
-        :up    #(tset (. $1 :a) :y -400)
-        :MOUSE  (fn [tbl mouse] (tset tbl :a (py.v2cw (py.pa->pb tbl.p mouse) #(* $1 500) #(* $1 500))))
-        :g     #(tset $1 :radius (+ 3 (math.abs (+ (. $1 :radius ) 7))))
-        :h     #(tset $1 :radius (+ 3 (math.abs (- (. $1 :radius ) 7))))})
-
+(var active 1)
 
 {:keypressed (fn keypressed [key]
-               (when (= key "space") (table.insert circles (+ 1 (length circles)) (require :assets.circle)))
+               (when (= key "space")
+                 (set active ( + 1 (% (length circles) (+ active 1)))))
                (tset current-keys key true))
  :keyreleased (fn keyreleased [key]
                 (tset current-keys key nil))
@@ -96,22 +87,19 @@
  :mousereleased (fn mousereleased [x y b]
                   (tset current-keys :MOUSE nil))
  :update (fn update [dt]
-           (when current-keys.MOUSE
-             (let [(x y) (love.mouse.getPosition)]
-               (set current-keys.MOUSE.x x)
-               (set current-keys.MOUSE.y y)))
-           (collisions? circles)
+           (when (> (length circles) 0)
+             (collisions? circles)
+             (handle_keys current-keys active circles)
            (set circles
                 (let [tbl []] 
                   (let [(w h _) (love.window.getMode)]
                     (each [_ circle (ipairs circles)]
                       (tset tbl (+ (length tbl) 1)
-                            (->> circle 
-                                 (handle_keys current-keys)
+                            (->> circle
                                  (do-forces dt)
                                  (do-position dt)
                                  (do-border-collision w h))))
-                    tbl))))
+                    tbl)))))
  :draw (fn draw []
          (each [_ circle (pairs circles)] 
            (love.graphics.circle "line" circle.p.x circle.p.y circle.radius)))}
